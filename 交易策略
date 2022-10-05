@@ -1,0 +1,88 @@
+BS = None
+buy = []
+sell = []
+sellshort = []
+buytocover = []
+profit_list = [0]
+profit_fee_list = [0]
+profit_fee_list_realized = []
+
+for i in range(len(df)):
+
+    if i == len(df)-1:
+        break
+
+    ## 進場邏輯
+    entryLong =  df['close'][i] > df['EMA'][i] and df["close"][i] > df["upLine"][i] 
+    entrySellShort = df['close'][i] < df['EMA'][i] and df["close"][i] < df["downLine"][i] and df["ADX"][i] > 50
+    entryCondition = date_arr[i] not in settlementDate #結算日不進場
+    
+    ## 出場邏輯
+    exitShort = df['close'][i] <= df['EMA'][i]
+    exitBuyToCover = df['close'][i] >= df['EMA'][i]
+    exitCondition = date_arr[i] in settlementDate and df["Hour"][i] >= 11 #結算日當天超過11.強制出場
+    
+    ## 停利停損邏輯
+    if BS == "B":
+      stopLoss = df['close'][i] <= df['open'][t] * (1-K)
+      stopProfit = df['close'][i] >= df['open'][t] * (1+K)
+    elif BS == 'S':
+      stopLoss = df['close'][i] >= df['open'][t] * (1+K)
+      stopProfit = df['close'][i] <= df['open'][t] * (1-K)
+
+    if BS == None:
+        profit_list.append(0)
+        profit_fee_list.append(0)
+        
+        if entryLong and entryCondition:
+            BS = 'B'
+            t = i+1
+            buy.append(t)
+
+        elif entrySellShort and entryCondition:
+            BS = 'S'
+            t = i+1
+            sellshort.append(t)
+
+        
+    elif BS == 'B':
+        profit = 200 * (df['open'][i+1] - df['open'][i])
+        profit_list.append(profit)
+            
+        if exitShort or i == len(df)-2 or exitCondition or stopLoss or stopProfit:
+            pl_round = 200 * (df['open'][i+1] - df['open'][t])
+            profit_fee = profit - feePaid*2
+            profit_fee_list.append(profit_fee)
+            sell.append(i+1)
+            BS=None
+
+            # Realized PnL
+            profit_fee_realized = pl_round - feePaid*2
+            profit_fee_list_realized.append(profit_fee_realized)
+
+        else:
+            profit_fee = profit
+            profit_fee_list.append(profit_fee)
+            
+    elif BS == 'S': 
+        profit = 200 * (df['open'][i] - df['open'][i+1])
+        profit_list.append(profit)
+        
+        if exitBuyToCover or i == len(df)-2 or exitCondition or stopLoss or stopProfit:
+            pl_round = 200 * (df['open'][t] - df['open'][i+1])
+            profit_fee = profit - feePaid*2
+            profit_fee_list.append(profit_fee)
+            buytocover.append(i+1)
+            BS=None
+
+            # Realized PnL
+            profit_fee_realized = pl_round - feePaid*2
+            profit_fee_list_realized.append(profit_fee_realized)
+
+        else:
+            profit_fee = profit
+            profit_fee_list.append(profit_fee)
+            
+equity = pd.DataFrame({'profit':np.cumsum(profit_list), 'profitfee':np.cumsum(profit_fee_list)}, index=trainData.index)
+print(equity)
+equity.plot(grid=True, figsize=(12, 6));
