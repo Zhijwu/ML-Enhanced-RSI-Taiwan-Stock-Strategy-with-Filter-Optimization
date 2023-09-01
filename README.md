@@ -1,7 +1,3 @@
-# ML-Enhanced-RSI-Taiwan
-Config files for my GitHub profile.
-### Team members : 陳律嘉、郭東輝、吳致傑
-
 # 量化交易與機器學習濾網建置
 
 ## 1. Motivation
